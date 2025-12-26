@@ -1310,41 +1310,17 @@ class BaseRobot(SceneNode, DynamicsMixin, ABC, Generic[LinkType]):
 
             toplevel = len(path) == 0
             explored.add(link)
+            path.append(link)
 
             if link == end:
                 return path
-
-            # unlike regular DFS, the neighbours of the node are its children
-            # and its parent.
-
-            # visit child nodes below start
-            if toplevel:
-                path = [link]
-
+            
             if link.children is not None:
                 for child in link.children:
                     if child not in explored:
-                        path.append(child)
-                        p = search(child, end, explored, path)
+                        p = search(child, end, explored, path.copy())
                         if p is not None:
                             return p
-
-            # We didn't find the node below, keep going up a level, and recursing
-            # down again
-            if toplevel:
-                path = []
-
-            if link.parent is not None:
-                parent = link.parent  # go up one level toward the root
-                if parent not in explored:
-                    if len(path) == 0:
-                        p = search(parent, end, explored, [link])
-                    else:
-                        path.append(link)
-                        p = search(parent, end, explored, path)
-
-                    if p is not None and len(p) > 0:
-                        return p
 
         end, start, tool = self._get_limit_links(end=end, start=start)
 
@@ -1358,7 +1334,12 @@ class BaseRobot(SceneNode, DynamicsMixin, ABC, Generic[LinkType]):
         if tool is None:
             tool = SE3()
 
-        return path, len(path), tool  # type: ignore
+        m = 0  # the valid number of joints
+        for link in path:
+            if link.isjoint:  # if link.isrevolute or link.isprismatic:
+                m = m + 1
+
+        return path, m, tool  # type: ignore
 
     @lru_cache(maxsize=32)
     def _getlink(

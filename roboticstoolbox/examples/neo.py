@@ -124,7 +124,7 @@ def step():
     ub = np.r_[panda.qdlim[:n], 10 * np.ones(6)]
 
     # Solve for the joint velocities dq
-    qd = qp.solve_qp(Q, c, Ain, bin, Aeq, beq, lb=lb, ub=ub)
+    qd = qp.solve_qp(Q, c, Ain, bin, Aeq, beq, lb=lb, ub=ub, solver='cvxopt')
 
     # Apply the joint velocities to the Panda
     panda.qd[:n] = qd[:n]

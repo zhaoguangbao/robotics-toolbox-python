@@ -1333,7 +1333,7 @@ class Robot(BaseRobot[Link], RobotKinematicsMixin):
         self,
         ps: float = 0.05,
         pi: float = 0.1,
-        n: Union[int, None] = None,
+        joint_idx: Union[int, List[int], None] = None,
         gain: float = 1.0,
     ) -> Tuple[NDArray, NDArray]:
         """
@@ -1366,18 +1366,21 @@ class Robot(BaseRobot[Link], RobotKinematicsMixin):
 
         """
 
-        if n is None:
-            n = self.n
+        if joint_idx is None:
+            joint_idx = list(range(self.n))
+        elif isinstance(joint_idx, int):
+            joint_idx = list(range(joint_idx))
+        n = len(joint_idx)
 
         Ain = np.zeros((n, n))
         Bin = np.zeros(n)
 
-        for i in range(n):
-            if self.q[i] - self.qlim[0, i] <= pi:
-                Bin[i] = -gain * (((self.qlim[0, i] - self.q[i]) + ps) / (pi - ps))
+        for i, ji in enumerate(joint_idx):
+            if self.q[ji] - self.qlim[0, ji] <= pi:
+                Bin[i] = -gain * (((self.qlim[0, ji] - self.q[ji]) + ps) / (pi - ps))
                 Ain[i, i] = -1
-            if self.qlim[1, i] - self.q[i] <= pi:
-                Bin[i] = gain * ((self.qlim[1, i] - self.q[i]) - ps) / (pi - ps)
+            if self.qlim[1, ji] - self.q[ji] <= pi:
+                Bin[i] = gain * ((self.qlim[1, ji] - self.q[ji]) - ps) / (pi - ps)
                 Ain[i, i] = 1
 
         return Ain, Bin
@@ -1429,6 +1432,12 @@ class Robot(BaseRobot[Link], RobotKinematicsMixin):
         end, start, _ = self._get_limit_links(start=start, end=end)
 
         links, n, _ = self.get_path(start=start, end=end)
+        m = 0
+        for link in links:
+            if link.isjoint:
+                m = m+1
+        # print(m)
+        # links, _, _ = self.get_path(start=start, end=end)
 
         q = np.array(q)
         j = 0
@@ -1457,8 +1466,11 @@ class Robot(BaseRobot[Link], RobotKinematicsMixin):
 
                 Je = self.jacobe(q, start=start, end=link, tool=link_col.T)
                 n_dim = Je.shape[1]
+                # print(Je.shape)
                 dp = norm_h @ shape.v
-                l_Ain = np.zeros((1, n))
+                # print(Je.shape, self.n, n)
+                # l_Ain = np.zeros((1, self.n))
+                l_Ain = np.zeros((1, m))
 
                 l_Ain[0, :n_dim] = 1 * norm_h @ Je
                 l_bin = (xi * (d - ds) / (di - ds)) + dp
